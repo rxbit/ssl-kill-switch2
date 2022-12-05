@@ -11,9 +11,7 @@
 
 #if SUBSTRATE_BUILD
 #import "substrate.h"
-
-#define PREFERENCE_FILE @"/private/var/mobile/Library/Preferences/com.nablac0d3.SSLKillSwitchSettings.plist"
-#define PREFERENCE_KEY @"shouldDisableCertificateValidation"
+#import <dlfcn.h>
 
 #else
 
@@ -27,49 +25,12 @@
 
 static void SSKLog(NSString *format, ...)
 {
-    NSString *newFormat = [[NSString alloc] initWithFormat:@"=== SSL Kill Switch 2: %@", format];
+    NSString *newFormat = [[NSString alloc] initWithFormat:@"=R=X= SSL Kill Switch 2: %@", format];
     va_list args;
     va_start(args, format);
     NSLogv(newFormat, args);
     va_end(args);
 }
-
-
-#if SUBSTRATE_BUILD
-// Utility function to read the Tweak's preferences
-static BOOL shouldHookFromPreference(NSString *preferenceSetting)
-{
-    BOOL shouldHook = NO;
-    NSMutableDictionary* plist = [[NSMutableDictionary alloc] initWithContentsOfFile:PREFERENCE_FILE];
-
-    if (!plist)
-    {
-        SSKLog(@"Preference file not found.");
-    }
-    else
-    {
-        shouldHook = [[plist objectForKey:preferenceSetting] boolValue];
-        SSKLog(@"Preference set to %d.", shouldHook);
-
-        // Checking if BundleId has been excluded by user
-        NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
-        bundleId = [bundleId stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-
-        NSString *excludedBundleIdsString = [plist objectForKey:@"excludedBundleIds"];
-        excludedBundleIdsString = [excludedBundleIdsString stringByReplacingOccurrencesOfString:@" " withString:@""];
-
-        NSArray *excludedBundleIds = [excludedBundleIdsString componentsSeparatedByString:@","];
-
-        if ([excludedBundleIds containsObject:bundleId])
-        {
-            SSKLog(@"Not hooking excluded bundle: %@", bundleId);
-            shouldHook = NO;
-        }
-    }
-    return shouldHook;
-}
-#endif
-
 
 #pragma mark SecureTransport hooks - iOS 9 and below
 // Explanation here: https://nabla-c0d3.github.io/blog/2013/08/20/ios-ssl-kill-switch-v0-dot-5-released/
@@ -217,7 +178,6 @@ __attribute__((constructor)) static void init(int argc, const char **argv)
 {
 #if SUBSTRATE_BUILD
     // Substrate-based hooking; only hook if the preference file says so
-    if (shouldHookFromPreference(PREFERENCE_KEY))
     {
         SSKLog(@"Substrate hook enabled.");
 
@@ -300,10 +260,6 @@ __attribute__((constructor)) static void init(int argc, const char **argv)
 
             MSHookMessageEx(NSClassFromString(@"NSURLSessionConfiguration"), NSSelectorFromString(@"setprotocolClasses:"), (IMP) &newSetprotocolClasses, (IMP *)&oldSetprotocolClasses);
         }
-    }
-    else
-    {
-        SSKLog(@"Substrate hook disabled.");
     }
 
 #else
